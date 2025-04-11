@@ -116,6 +116,19 @@ app.post("/signup/restaurant", (req, res) => {
     });
 });
 
+// Get all available restaurants
+app.get("/restaurants", (req, res) => {
+    const sql = "SELECT * FROM RestaurantTable";
+
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error("Error fetching restaurants:", err);
+            return res.status(500).json({ success: false, message: "Failed to fetch restaurants" });
+        }
+
+        res.json(results); // Send all restaurants to frontend
+    });
+});
 
 
 

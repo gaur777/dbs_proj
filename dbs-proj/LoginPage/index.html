@@ -9,6 +9,95 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
+    <style>
+        .loading-spinner {
+          text-align: center;
+          margin: 2rem;
+          font-size: 1.2rem;
+          color: #555;
+        }
+      
+        .toast {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          background-color: #f44336;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+          display: none;
+          z-index: 1000;
+        }
+      
+        .no-results {
+          text-align: center;
+          margin: 2rem;
+          font-size: 1.1rem;
+          color: #999;
+        }
+      </style>
+      
+      <div id="toast" class="toast">Failed to fetch restaurants. Please try again.</div>
+      <div id="spinner" class="loading-spinner">Loading restaurants...</div>
+      <div id="restaurant-grid" class="restaurant-grid"></div>
+      
+      <script>
+        const restaurantGrid = document.getElementById('restaurant-grid');
+        const spinner = document.getElementById('spinner');
+        const toast = document.getElementById('toast');
+      
+        function showToast(message) {
+          toast.textContent = message;
+          toast.style.display = 'block';
+          setTimeout(() => {
+            toast.style.display = 'none';
+          }, 3000);
+        }
+      
+        function displayRestaurants(data) {
+          spinner.style.display = 'none';
+          restaurantGrid.innerHTML = '';
+      
+          if (!data || data.length === 0) {
+            restaurantGrid.innerHTML = '<div class="no-results">No restaurants available.</div>';
+            return;
+          }
+      
+          data.forEach(restaurant => {
+            const card = document.createElement('div');
+            card.classList.add('restaurant-card');
+            card.innerHTML = `
+              <img src="${restaurant.image}" alt="${restaurant.name}" class="restaurant-image">
+              <div class="restaurant-info">
+                <h3>${restaurant.name}</h3>
+                <p>${restaurant.cuisine}</p>
+                <p>Price: ${restaurant.price}</p>
+                <p>Rating: ${restaurant.rating}</p>
+              </div>
+            `;
+            card.addEventListener('click', () => openModal(restaurant));
+            restaurantGrid.appendChild(card);
+          });
+        }
+      
+        // Fetch restaurants from backend
+        fetch('http://localhost:3000/restaurants')
+          .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+          })
+          .then(data => {
+            restaurants = data;
+            displayRestaurants(restaurants);
+          })
+          .catch(error => {
+            spinner.style.display = 'none';
+            showToast('Failed to fetch restaurants. Please try again.');
+            console.error('Error fetching restaurants:', error);
+          });
+      </script>
+      
     <div class="container">
         <div class="card">
             <div class="logo">
