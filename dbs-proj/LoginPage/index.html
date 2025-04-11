@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReservEase - Login</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="logo">
+                <i class="fas fa-utensils"></i>
+                <h1>ReservEase</h1>
+            </div>
+            
+            <div class="login-type">
+                <button id="userLogin" class="active pill-btn">Diner Login</button>
+                <button id="adminLogin" class="pill-btn">Restaurant Login</button>
+            </div>
+            
+            <div class="login-form">
+                <div class="input-group">
+                    <i class="fas fa-user input-icon"></i>
+                    <input type="text" id="username" placeholder="Username" required>
+                </div>
+                <div class="input-group">
+                    <div class="password-container">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="password" placeholder="Password" required>
+                        <i class="fas fa-eye-slash toggle-password"></i>
+                    </div>
+                </div>
+                <button id="loginBtn" class="primary-btn">Login</button>
+                <a href="#" class="forgot-password">Forgot Password?</a>
+            </div>
+            
+            <div class="divider">
+                <span>or</span>
+            </div>
+            
+            <div class="signup-options">
+                <button id="signupUser" class="secondary-btn">
+                    <i class="fas fa-user-plus"></i> Sign Up as Diner
+                </button>
+                <button id="signupAdmin" class="secondary-btn">
+                    <i class="fas fa-store"></i> Sign Up as Restaurant
+                </button>
+            </div>
+        </div>
+    </div>
+
+    
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-user-plus"></i> Diner Registration</h2>
+            <form id="userSignupForm">
+                <div class="input-group">
+                    <i class="fas fa-user input-icon"></i>
+                    <input type="text" placeholder="Full Name" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-at input-icon"></i>
+                    <input type="text" placeholder="Username" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" placeholder="Password" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-phone input-icon"></i>
+                    <input type="tel" placeholder="Phone Number" required>
+                </div>
+                <button type="submit" class="primary-btn">Create Account</button>
+            </form>
+        </div>
+    </div>
+
+    
+    <div id="adminModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-store"></i> Restaurant Registration</h2>
+            <form id="adminSignupForm">
+                <div class="input-group">
+                    <i class="fas fa-store input-icon"></i>
+                    <input type="text" placeholder="Restaurant Name" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-chair input-icon"></i>
+                    <input type="number" placeholder="Seating Capacity" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-tag input-icon"></i>
+                    <input type="number" placeholder="Price Per Person ($)" required>
+                </div>
+                <div class="time-group">
+                    <div class="input-group">
+                        <i class="fas fa-door-open input-icon"></i>
+                        <input type="time" placeholder="Opening Time" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fas fa-door-closed input-icon"></i>
+                        <input type="time" placeholder="Closing Time" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-at input-icon"></i>
+                    <input type="text" placeholder="Admin Username" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" placeholder="Admin Password" required>
+                </div>
+                <button type="submit" class="primary-btn">Register Restaurant</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="assets/js/script.js"></script>
+</body>
+</html>

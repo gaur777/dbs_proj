@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReservEase - Find Restaurants</title>
+    <link rel="stylesheet" href="assets/css/home.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <i class="fas fa-utensils"></i>
+            <h1>ReservEase</h1>
+        </div>
+        <div class="user-info">
+            <div class="balance" id="walletBtn">
+                <i class="fas fa-wallet"></i>
+                <span id="userBalance">$500.00</span>
+            </div>
+            <div class="profile-dropdown">
+                <div class="profile" id="profileBtn">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="usernameDisplay">Guest</span>
+                    <i class="fas fa-caret-down"></i>
+                </div>
+                <div class="dropdown-content" id="profileDropdown">
+                    <a href="#" id="viewReservations"><i class="fas fa-calendar-alt"></i> My Reservations</a>
+                    <a href="index.html" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="search-filter-container">
+            <div class="search-container">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search restaurants by name, cuisine or location...">
+                    <button id="searchBtn">Search</button>
+                </div>
+            </div>
+            <div class="filter-container">
+                <div class="filter-group">
+                    <label for="priceFilter"><i class="fas fa-tag"></i> Price</label>
+                    <select id="priceFilter">
+                        <option value="">All</option>
+                        <option value="1">$</option>
+                        <option value="2">$$</option>
+                        <option value="3">$$$</option>
+                        <option value="4">$$$$</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="cuisineFilter"><i class="fas fa-utensils"></i> Cuisine</label>
+                    <select id="cuisineFilter">
+                        <option value="">All</option>
+                        <option value="italian">Italian</option>
+                        <option value="indian">Indian</option>
+                        <option value="mexican">Mexican</option>
+                        <option value="chinese">Chinese</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="ratingFilter"><i class="fas fa-star"></i> Rating</label>
+                    <select id="ratingFilter">
+                        <option value="">All</option>
+                        <option value="4">4+ Stars</option>
+                        <option value="4.5">4.5+ Stars</option>
+                    </select>
+                </div>
+                <button id="clearFilters" class="secondary-btn">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+        </div>
+
+        <div class="restaurants-container">
+            <h2>Available Restaurants</h2>
+            <div class="restaurants-grid" id="restaurantsGrid">
+                <!-- Restaurant cards will be inserted here by JavaScript -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-calendar-plus"></i> Book Your Table</h2>
+            <div class="booking-form">
+                <div class="form-group">
+                    <label for="bookingDate"><i class="fas fa-calendar-day"></i> Date</label>
+                    <input type="text" id="bookingDate" placeholder="Select date" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="bookingTime"><i class="fas fa-clock"></i> Time</label>
+                    <input type="text" id="bookingTime" placeholder="Select time" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="partySize"><i class="fas fa-users"></i> Party Size</label>
+                    <input type="number" id="partySize" min="1" value="1">
+                </div>
+                <div class="price-summary">
+                    <div class="price-detail">
+                        <span>Price per head:</span>
+                        <span id="pricePerHead">$0.00</span>
+                    </div>
+                    <div class="price-detail">
+                        <span>Total:</span>
+                        <span id="totalPrice">$0.00</span>
+                    </div>
+                </div>
+                <button id="confirmBooking" class="primary-btn">Confirm Booking</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wallet Modal -->
+    <div id="walletModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-wallet"></i> My Wallet</h2>
+            <div class="wallet-balance">
+                <span>Current Balance:</span>
+                <span id="currentBalance">₹500.00</span>
+            </div>
+            <div class="topup-form">
+                <div class="form-group">
+                    <label for="topupAmount"><i class="fas fa-money-bill-wave"></i> Amount</label>
+                    <input type="number" id="topupAmount" min="10" placeholder="Enter amount">
+                </div>
+                <button id="topupBtn" class="primary-btn">Top Up</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reservations Modal -->
+    <div id="reservationsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-calendar-alt"></i> My Reservations</h2>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="active">Active</button>
+                <button class="tab-btn" data-tab="past">Past</button>
+            </div>
+            <div class="reservations-list" id="activeReservations">
+                <!-- Active reservations will be inserted here -->
+            </div>
+            <div class="reservations-list hidden" id="pastReservations">
+                <!-- Past reservations will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="assets/js/home.js"></script>
+</body>
+</html>
