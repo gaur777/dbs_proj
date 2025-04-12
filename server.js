@@ -130,6 +130,71 @@ app.get("/restaurants", (req, res) => {
     });
 });
 
+// Get Customer Balance API
+app.get("/customer/balance/:username", (req, res) => {
+    const { username } = req.params;
+
+    const sql = "SELECT balance FROM Customer WHERE username = ?";
+    db.query(sql, [username], (err, results) => {
+        if (err) {
+            console.error("Error fetching balance:", err);
+            return res.status(500).json({ success: false, message: "Error fetching balance" });
+        }
+
+        if (results.length > 0) {
+            res.json({ success: true, balance: results[0].balance });
+        } else {
+            res.status(404).json({ success: false, message: "Customer not found" });
+        }
+    });
+});
+
+// API to handle top-up balance by customer_id
+app.post("/customer/topup", (req, res) => {
+    const { username, amount } = req.body;
+
+    if (!username || !amount || isNaN(amount)) {
+        return res.status(400).json({ success: false, message: "Invalid input" });
+    }
+
+    // Step 1: Get customer_id from username in the Customer table
+    const getCustomerIdQuery = "SELECT customer_id FROM Customer WHERE username = ?";
+    db.query(getCustomerIdQuery, [username], (err, results) => {
+        if (err) {
+            console.error("Error fetching customer_id:", err);
+            return res.status(500).json({ success: false, message: "Error fetching customer ID" });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ success: false, message: "Customer not found" });
+        }
+
+        const customerId = results[0].customer_id;
+
+        // Step 2: Update the balance in the Wallet table for the customer
+        const updateWalletQuery = `
+            UPDATE Wallet
+            SET balance = balance + ?
+            WHERE customer_id = ?
+        `;
+
+        db.query(updateWalletQuery, [parseFloat(amount), customerId], (err2, result2) => {
+            if (err2) {
+                console.error("Error updating wallet balance:", err2);
+                return res.status(500).json({ success: false, message: "Error updating wallet balance" });
+            }
+
+            if (result2.affectedRows === 0) {
+                return res.status(404).json({ success: false, message: "Wallet not found for the customer" });
+            }
+
+            res.json({ success: true, message: "Wallet topped up successfully!" });
+        });
+    });
+});
+app.get("/test", (req, res) => {
+    res.send("Hello, test route works!");
+})
 
 
 app.listen(port, () => {

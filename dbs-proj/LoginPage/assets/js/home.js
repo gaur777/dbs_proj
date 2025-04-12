@@ -123,6 +123,23 @@ document.addEventListener('DOMContentLoaded', function() {
     if (username) {
         document.getElementById('usernameDisplay').textContent = username;
     }
+    if (username) {
+        fetch(`http://localhost:3000/customer/balance/${username}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log("Customer Balance:", data.balance);
+                    userBalance = parseFloat(data.balance);  // Update the global variable
+                    updateBalanceDisplay();  // Refresh UI with correct value
+                } else {
+                    console.error("Balance fetch failed");
+                }
+            })
+            .catch(err => {
+                console.error("Error fetching balance:", err);
+            });
+    }
+    
   
     // Display user balance
     function updateBalanceDisplay() {
@@ -470,25 +487,50 @@ document.addEventListener('DOMContentLoaded', function() {
         alert(`Booking confirmed at ${currentRestaurant.name} for ${partySize.value} people on ${bookingDate.value} at ${bookingTime.value}\nTotal: $${total.toFixed(2)}`);
     });
   
-    // Top up wallet
-    topupBtn.addEventListener('click', function() {
-        const amount = parseFloat(topupAmount.value);
-        
-        if (isNaN(amount)) {
-            alert('Please enter a valid amount');
-            return;
+  // Top up wallet
+  topupBtn.addEventListener('click', function() {
+    const amount = parseFloat(topupAmount.value);
+    const username = document.getElementById('usernameDisplay').textContent;  // Assuming this is where username is displayed.
+
+    if (isNaN(amount)) {
+        alert('Please enter a valid amount');
+        return;
+    }
+
+    if (amount < 10) {
+        alert('Minimum top up amount is $10');
+        return;
+    }
+
+    // Send top-up request to the server
+    fetch('http://localhost:3000/customer/topup', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            username: username,
+            amount: amount
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            userBalance += amount;
+            updateBalanceDisplay();
+            topupAmount.value = '';
+            alert(`Successfully topped up $${amount.toFixed(2)}`);
+        } else {
+            alert('Top-up failed: ' + data.message);
         }
-        
-        if (amount < 10) {
-            alert('Minimum top up amount is $10');
-            return;
-        }
-        
-        userBalance += amount;
-        updateBalanceDisplay();
-        topupAmount.value = '';
-        alert(`Successfully topped up $${amount.toFixed(2)}`);
+    })
+    .catch(err => {
+        console.error('Error during top-up:', err);
+        alert('Error during top-up');
     });
+});
+
+
   
     // Initial display
     updateBalanceDisplay();
