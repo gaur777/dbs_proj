@@ -192,9 +192,6 @@ app.post("/customer/topup", (req, res) => {
         });
     });
 });
-app.get("/test", (req, res) => {
-    res.send("Hello, test route works!");
-})
 
 
 app.listen(port, () => {
