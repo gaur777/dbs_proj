@@ -193,6 +193,138 @@ app.post("/customer/topup", (req, res) => {
     });
 });
 
+app.post('/api/reservations', async (req, res) => {
+    const { customer_username, restaurant_id, booking_date, booking_time, number_of_people, amount } = req.body;
+
+    try {
+        // Start transaction
+        await db.promise().query('START TRANSACTION');
+
+        // 1. Get customer_id from username
+        const [customer] = await db.promise().query(
+            'SELECT customer_id FROM Customer WHERE username = ?', 
+            [customer_username]
+        );
+        
+        if (customer.length === 0) {
+            await db.promise().query('ROLLBACK');
+            return res.status(404).json({ 
+                error: 'Customer not found',
+                details: `No customer found with username: ${customer_username}`
+            });
+        }
+        const customer_id = customer[0].customer_id;
+
+        // 2. Verify restaurant exists
+        const [restaurant] = await db.promise().query(
+            'SELECT restaurant_name FROM RestaurantTable WHERE restaurant_id = ?', 
+            [restaurant_id]
+        );
+        
+        if (restaurant.length === 0) {
+            await db.promise().query('ROLLBACK');
+            return res.status(404).json({ 
+                error: 'Restaurant not found',
+                details: `No restaurant found with ID: ${restaurant_id}`
+            });
+        }
+
+        // 3. Insert reservation (without payment_id)
+        const [reservationResult] = await db.promise().query(
+            'INSERT INTO Reservation (customer_id, restaurant_id, booking_date, booking_time, number_of_people) VALUES (?, ?, ?, ?, ?)',
+            [customer_id, restaurant_id, booking_date, booking_time, number_of_people]
+        );
+        
+        const reservation_id = reservationResult.insertId;
+        console.log(`Created reservation with ID: ${reservation_id}`);
+
+        // 4. Insert payment record
+        const [paymentResult] = await db.promise().query(
+            'INSERT INTO Payment (reservation_id, amount) VALUES (?, ?)',
+            [reservation_id, amount]
+        );
+        
+        console.log(`Created payment with ID: ${paymentResult.insertId}`);
+
+        // Commit transaction
+        await db.promise().query('COMMIT');
+
+        res.json({ 
+            success: true, 
+            message: 'Reservation and payment processed successfully',
+            reservation_id: reservation_id,
+            payment_id: paymentResult.insertId,
+            restaurant_name: restaurant[0].restaurant_name
+        });
+
+    } catch (error) {
+        await db.promise().query('ROLLBACK');
+        console.error('Error processing reservation:', error);
+        
+        res.status(500).json({ 
+            error: 'Database operation failed',
+            details: error.message,
+            sqlError: error.sqlMessage || 'No SQL error message',
+            sqlQuery: error.sql || 'No SQL query available'
+        });
+    }
+});
+
+
+// Add this to your server.js
+app.get('/api/reservations/:username', async (req, res) => {
+    const { username } = req.params;
+    const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    try {
+        // Get customer_id from username
+        const [customer] = await db.promise().query(
+            'SELECT customer_id FROM Customer WHERE username = ?', 
+            [username]
+        );
+        
+        if (customer.length === 0) {
+            return res.status(404).json({ 
+                error: 'Customer not found'
+            });
+        }
+        
+        const customer_id = customer[0].customer_id;
+
+        // Get all reservations for this customer with restaurant details
+        const [reservations] = await db.promise().query(`
+            SELECT r.reservation_id, rt.restaurant_name, r.booking_date, r.booking_time, 
+                   r.number_of_people, p.amount, 
+                   CASE 
+                       WHEN r.booking_date > ? THEN 'upcoming'
+                       ELSE 'completed'
+                   END AS status
+            FROM Reservation r
+            JOIN Payment p ON r.reservation_id = p.reservation_id
+            JOIN RestaurantTable rt ON r.restaurant_id = rt.restaurant_id
+            WHERE r.customer_id = ?
+            ORDER BY r.booking_date, r.booking_time
+        `, [currentDate, customer_id]);
+
+        res.json(reservations);
+    } catch (error) {
+        console.error('Error fetching reservations:', error);
+        res.status(500).json({ 
+            error: 'Database operation failed',
+            details: error.message
+        });
+    }
+});
+
+// // Add this test route to server.js
+// app.get('/api/test-db', async (req, res) => {
+//     try {
+//         const [results] = await db.promise().query('SELECT 1+1 AS solution');
+//         res.json({ success: true, solution: results[0].solution });
+//     } catch (error) {
+//         res.status(500).json({ error: 'DB connection failed', details: error.message });
+//     }
+// });
 
 app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);

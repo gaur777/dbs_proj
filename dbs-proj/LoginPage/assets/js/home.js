@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Fetch restaurants from backend API
   let restaurants = [];
-  
+  fetchAndDisplayReservations();
+
   fetch('http://localhost:3000/restaurants')
     .then(response => response.json())
     .then(data => {
@@ -320,30 +321,52 @@ document.addEventListener('DOMContentLoaded', function() {
   
         displayRestaurants(filtered);
     }
-  
+    async function fetchAndDisplayReservations() {
+        const username = urlParams.get('username');
+        if (!username) return;
+    
+        try {
+            const response = await fetch(`http://localhost:3000/api/reservations/${username}`);
+            const reservations = await response.json();
+    
+            if (!response.ok) {
+                throw new Error(reservations.error || 'Failed to fetch reservations');
+            }
+    
+            // Separate into active and past reservations
+            const activeReservations = reservations.filter(r => r.status === 'upcoming');
+            const pastReservations = reservations.filter(r => r.status === 'completed');
+    
+            // Display them
+            displayReservations(activeReservations, pastReservations);
+        } catch (error) {
+            console.error('Error fetching reservations:', error);
+            alert('Failed to load reservations: ' + error.message);
+        }
+    }
     // Display reservations
-    function displayReservations() {
-        activeReservations.innerHTML = '';
-        pastReservations.innerHTML = '';
-  
-        if (reservations.active.length === 0) {
-            activeReservations.innerHTML = '<p class="no-results">No upcoming reservations.</p>';
+    function displayReservations(activeReservations, pastReservations) {
+        activeReservationsList.innerHTML = '';
+        pastReservationsList.innerHTML = '';
+    
+        if (activeReservations.length === 0) {
+            activeReservationsList.innerHTML = '<p class="no-results">No upcoming reservations</p>';
         } else {
-            reservations.active.forEach(reservation => {
-                const card = createReservationCard(reservation);
-                activeReservations.appendChild(card);
+            activeReservations.forEach(reservation => {
+                activeReservationsList.appendChild(createReservationCard(reservation));
             });
         }
-  
-        if (reservations.past.length === 0) {
-            pastReservations.innerHTML = '<p class="no-results">No past reservations.</p>';
+    
+        if (pastReservations.length === 0) {
+            pastReservationsList.innerHTML = '<p class="no-results">No past reservations</p>';
         } else {
-            reservations.past.forEach(reservation => {
-                const card = createReservationCard(reservation);
-                pastReservations.appendChild(card);
+            pastReservations.forEach(reservation => {
+                pastReservationsList.innerHTML = '';
+                pastReservationsList.appendChild(createReservationCard(reservation));
             });
         }
     }
+    
   
     // Create reservation card
     function createReservationCard(reservation) {
@@ -351,25 +374,28 @@ document.addEventListener('DOMContentLoaded', function() {
         card.className = 'reservation-card';
         
         const statusClass = `status-${reservation.status}`;
+        const formattedDate = new Date(reservation.booking_date).toLocaleDateString();
+        const formattedTime = reservation.booking_time.substring(0, 5); // HH:MM format
         
         card.innerHTML = `
             <div class="reservation-header">
-                <span class="reservation-name">${reservation.restaurant}</span>
+                <span class="reservation-name">${reservation.restaurant_name}</span>
                 <span class="reservation-status ${statusClass}">
                     ${reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1)}
                 </span>
             </div>
             <div class="reservation-date">
-                ${reservation.date} at ${reservation.time}
+                ${formattedDate} at ${formattedTime}
             </div>
             <div class="reservation-details">
-                <span>${reservation.partySize} person${reservation.partySize > 1 ? 's' : ''}</span>
-                <span>$${reservation.total.toFixed(2)}</span>
+                <span>${reservation.number_of_people} person${reservation.number_of_people > 1 ? 's' : ''}</span>
+                <span>$${reservation.amount.toFixed(2)}</span>
             </div>
         `;
         
         return card;
     }
+   
   
     // Event Listeners
     searchBtn.addEventListener('click', filterRestaurants);
@@ -450,42 +476,61 @@ document.addEventListener('DOMContentLoaded', function() {
     partySize.addEventListener('change', updateTotalPrice);
     partySize.addEventListener('input', updateTotalPrice);
   
-    confirmBooking.addEventListener('click', function() {
-        if (!bookingDate.value || !bookingTime.value) {
-            alert('Please select date and time');
+  
+    confirmBooking.addEventListener('click', async function() {
+        if (!bookingDate.value || !bookingTime.value || !partySize.value) {
+            alert('Please fill in all booking details');
             return;
         }
-  
-        const total = currentRestaurant.perHead * parseInt(partySize.value);
-        
-        if (userBalance < total) {
-            alert('Insufficient balance. Please top up your wallet.');
-            walletModal.style.display = 'block';
-            bookingModal.style.display = 'none';
+    
+        const username = urlParams.get('username');
+        if (!username) {
+            alert('User not identified');
             return;
         }
-  
-        // Deduct from balance
-        userBalance -= total;
-        updateBalanceDisplay();
-        
-        // Create new reservation
-        const newReservation = {
-            id: reservations.active.length + reservations.past.length + 1,
-            restaurant: currentRestaurant.name,
-            date: bookingDate.value,
-            time: bookingTime.value,
-            partySize: parseInt(partySize.value),
-            total: total,
-            status: "upcoming"
-        };
-        
-        reservations.active.push(newReservation);
-        
-        // Close modal and show success
-        bookingModal.style.display = 'none';
-        alert(`Booking confirmed at ${currentRestaurant.name} for ${partySize.value} people on ${bookingDate.value} at ${bookingTime.value}\nTotal: $${total.toFixed(2)}`);
+    
+        if (!currentRestaurant) {
+            alert('No restaurant selected');
+            return;
+        }
+    
+        const totalAmount = currentRestaurant.perHead * parseInt(partySize.value);
+    
+        try {
+            // Make the reservation
+            const response = await fetch('http://localhost:3000/api/reservations', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    customer_username: username,
+                    restaurant_id: currentRestaurant.id,
+                    booking_date: bookingDate.value,
+                    booking_time: bookingTime.value,
+                    number_of_people: parseInt(partySize.value),
+                    amount: totalAmount
+                })
+            });
+    
+            const result = await response.json();
+    
+            if (response.ok) {
+                // Close modal and show success
+                bookingModal.style.display = 'none';
+                alert('Booking confirmed successfully!');
+                
+                // Optionally refresh reservations
+                displayReservations();
+            } else {
+                alert('Booking failed: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again later.');
+        }
     });
+       
   
   // Top up wallet
   topupBtn.addEventListener('click', function() {
