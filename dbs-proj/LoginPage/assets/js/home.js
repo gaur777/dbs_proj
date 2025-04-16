@@ -333,9 +333,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(reservations.error || 'Failed to fetch reservations');
             }
     
-            // Separate into active and past reservations
-            const activeReservations = reservations.filter(r => r.status === 'upcoming');
-            const pastReservations = reservations.filter(r => r.status === 'completed');
+            // Get current date in YYYY-MM-DD format
+            const currentDate = new Date().toISOString().split('T')[0];
+            
+            // Separate into active (today or future) and past reservations
+            const activeReservations = reservations.filter(r => r.booking_date >= currentDate);
+            const pastReservations = reservations.filter(r => r.booking_date < currentDate);
     
             // Display them
             displayReservations(activeReservations, pastReservations);
@@ -346,6 +349,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     // Display reservations
     function displayReservations(activeReservations, pastReservations) {
+        const activeReservationsList = document.getElementById('activeReservations');
+        const pastReservationsList = document.getElementById('pastReservations');
+        
         activeReservationsList.innerHTML = '';
         pastReservationsList.innerHTML = '';
     
@@ -353,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
             activeReservationsList.innerHTML = '<p class="no-results">No upcoming reservations</p>';
         } else {
             activeReservations.forEach(reservation => {
-                activeReservationsList.appendChild(createReservationCard(reservation));
+                activeReservationsList.appendChild(createReservationCard(reservation, 'upcoming'));
             });
         }
     
@@ -361,8 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
             pastReservationsList.innerHTML = '<p class="no-results">No past reservations</p>';
         } else {
             pastReservations.forEach(reservation => {
-                pastReservationsList.innerHTML = '';
-                pastReservationsList.appendChild(createReservationCard(reservation));
+                pastReservationsList.appendChild(createReservationCard(reservation, 'completed'));
             });
         }
     }

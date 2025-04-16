@@ -316,15 +316,15 @@ app.get('/api/reservations/:username', async (req, res) => {
     }
 });
 
-// // Add this test route to server.js
-// app.get('/api/test-db', async (req, res) => {
-//     try {
-//         const [results] = await db.promise().query('SELECT 1+1 AS solution');
-//         res.json({ success: true, solution: results[0].solution });
-//     } catch (error) {
-//         res.status(500).json({ error: 'DB connection failed', details: error.message });
-//     }
-// });
+// Add this test route to server.js
+app.get('/api/test-db', async (req, res) => {
+    try {
+        const [results] = await db.promise().query('SELECT 1+1 AS solution');
+        res.json({ success: true, solution: results[0].solution });
+    } catch (error) {
+        res.status(500).json({ error: 'DB connection failed', details: error.message });
+    }
+});
 
 app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);
