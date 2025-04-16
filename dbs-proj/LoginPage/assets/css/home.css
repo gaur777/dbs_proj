@@ -871,7 +871,281 @@
   animation: spin 1s ease-in-out infinite;
   margin: 2rem auto;
 }
+/* Reservations Modal Styles */
+.reservation-card {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
 
+.reservation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.reservation-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--dark);
+}
+
+.reservation-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.reservation-status.upcoming {
+  background-color: rgba(42, 157, 143, 0.1);
+  color: var(--primary-dark);
+}
+
+.reservation-status.completed {
+  background-color: rgba(231, 111, 81, 0.1);
+  color: var(--secondary);
+}
+
+.reservation-details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.detail-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-label {
+  font-size: 0.8rem;
+  color: #777;
+  margin-bottom: 0.25rem;
+}
+
+.detail-value {
+  font-weight: 500;
+}
+
+.no-results {
+  text-align: center;
+  color: #666;
+  padding: 2rem;
+  font-style: italic;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: #666;
+  position: relative;
+}
+
+.tab-btn.active {
+  color: var(--primary);
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--primary);
+}
+
+.hidden {
+  display: none;
+}
+/* Add this to your existing CSS */
+#ratingScore {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+#ratingComment {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  resize: vertical;
+  min-height: 100px;
+  margin-bottom: 1rem;
+}
+
+#submitRating {
+  width: 100%;
+  padding: 0.8rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+#submitRating:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+}
+/* Add these styles to your home.css */
+
+/* Invoice Card Styles */
+.invoice-card {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.invoice-id {
+  font-weight: 600;
+  color: var(--dark);
+}
+
+.invoice-date {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.invoice-details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.invoice-amount {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-align: right;
+}
+
+.invoice-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.view-invoice-btn {
+  padding: 0.5rem 1rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.view-invoice-btn:hover {
+  background: var(--primary-dark);
+}
+
+.download-invoice-btn {
+  padding: 0.5rem 1rem;
+  background: var(--secondary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.download-invoice-btn:hover {
+  background: #d45a3a;
+}
+/* Invoice Modal Styles */
+#invoiceDetails {
+  margin: 1.5rem 0;
+}
+
+.invoice-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.invoice-detail-row:last-child {
+  border-bottom: none;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.invoice-detail-label {
+  color: #666;
+}
+
+.invoice-detail-value {
+  font-weight: 500;
+}
+
+.invoice-items {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.invoice-items th {
+  text-align: left;
+  padding: 0.5rem;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+}
+
+.invoice-items td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.invoice-items tr:last-child td {
+  border-bottom: none;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

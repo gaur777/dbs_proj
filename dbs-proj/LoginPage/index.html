@@ -39,7 +39,7 @@
       </style>
       
       <div id="toast" class="toast">Failed to fetch restaurants. Please try again.</div>
-      <div id="spinner" class="loading-spinner">Loading restaurants...</div>
+     
       <div id="restaurant-grid" class="restaurant-grid"></div>
       
       <script>
@@ -55,47 +55,7 @@
           }, 3000);
         }
       
-        function displayRestaurants(data) {
-          spinner.style.display = 'none';
-          restaurantGrid.innerHTML = '';
-      
-          if (!data || data.length === 0) {
-            restaurantGrid.innerHTML = '<div class="no-results">No restaurants available.</div>';
-            return;
-          }
-      
-          data.forEach(restaurant => {
-            const card = document.createElement('div');
-            card.classList.add('restaurant-card');
-            card.innerHTML = `
-              <img src="${restaurant.image}" alt="${restaurant.name}" class="restaurant-image">
-              <div class="restaurant-info">
-                <h3>${restaurant.name}</h3>
-                <p>${restaurant.cuisine}</p>
-                <p>Price: ${restaurant.price}</p>
-                <p>Rating: ${restaurant.rating}</p>
-              </div>
-            `;
-            card.addEventListener('click', () => openModal(restaurant));
-            restaurantGrid.appendChild(card);
-          });
-        }
-      
-        // Fetch restaurants from backend
-        fetch('http://localhost:3000/restaurants')
-          .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.json();
-          })
-          .then(data => {
-            restaurants = data;
-            displayRestaurants(restaurants);
-          })
-          .catch(error => {
-            spinner.style.display = 'none';
-            showToast('Failed to fetch restaurants. Please try again.');
-            console.error('Error fetching restaurants:', error);
-          });
+       
       </script>
       
     <div class="container">

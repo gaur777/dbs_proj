@@ -97,6 +97,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const activeReservations = document.getElementById('activeReservations');
     const pastReservations = document.getElementById('pastReservations');
     const tabBtns = document.querySelectorAll('.tab-btn');
+    const ratingModal = document.getElementById('ratingModal');
+    const ratingScore = document.getElementById('ratingScore');
+    const ratingComment = document.getElementById('ratingComment');
+    const submitRating = document.getElementById('submitRating');
   
     // Initialize date and time pickers
     flatpickr(bookingDate, {
@@ -144,8 +148,15 @@ document.addEventListener('DOMContentLoaded', function() {
   
     // Display user balance
     function updateBalanceDisplay() {
-        document.getElementById('userBalance').textContent = `$${userBalance.toFixed(2)}`;
-        currentBalance.textContent = `$${userBalance.toFixed(2)}`;
+        // Update both wallet display and modal balance
+        const balanceElements = [
+            document.getElementById('userBalance'),
+            document.getElementById('currentBalance')
+        ];
+        
+        balanceElements.forEach(el => {
+            if (el) el.textContent = `₹${userBalance.toFixed(2)}`;
+        });
     }
   
     // Sample restaurant data
@@ -230,23 +241,24 @@ document.addEventListener('DOMContentLoaded', function() {
         restaurantsToDisplay.forEach(restaurant => {
             const restaurantCard = document.createElement('div');
             restaurantCard.className = 'restaurant-card';
-            // In the displayRestaurants function, modify the restaurantCard.innerHTML to add the rate button:
-restaurantCard.innerHTML = `
-<img src="${restaurant.image}" alt="${restaurant.name}" class="restaurant-image">
-<div class="restaurant-info">
-    <h3 class="restaurant-name">${restaurant.name}</h3>
-    <div class="restaurant-details">
-        <span class="restaurant-cuisine">${restaurant.cuisine}</span>
-        <span class="restaurant-price">${restaurant.price}</span>
+            restaurantCard.innerHTML = `
+    <div class="restaurant-image-container">
+        <img src="${restaurant.image}" alt="${restaurant.name}" class="restaurant-image">
     </div>
-    <div class="restaurant-rating">
-        <i class="fas fa-star"></i>
-        <span>${restaurant.rating}</span>
+    <div class="restaurant-info">
+        <h3 class="restaurant-name">${restaurant.name}</h3>
+        <div class="restaurant-details">
+            <span class="restaurant-cuisine">${restaurant.cuisine}</span>
+            <span class="restaurant-price">${restaurant.price}</span>
+        </div>
+        <div class="restaurant-rating">
+            <i class="fas fa-star"></i>
+            <span>${restaurant.rating}</span>
+        </div>
+        <p class="restaurant-description">${restaurant.description}</p>
+        <button class="book-btn" data-id="${restaurant.id}">Book Table</button>
+        <button class="rate-btn" data-id="${restaurant.id}">Rate & Review</button>
     </div>
-    <p class="restaurant-description">${restaurant.description}</p>
-    <button class="rate-btn" data-id="${restaurant.id}">Rate</button>
-    <button class="book-btn" data-id="${restaurant.id}">Book Table</button>
-</div>
 `;
             restaurantsGrid.appendChild(restaurantCard);
         });
@@ -283,44 +295,41 @@ restaurantCard.innerHTML = `
   
     // Filter restaurants
     function filterRestaurants() {
-        const searchTerm = searchInput.value.toLowerCase();
+        const searchTerm = searchInput.value.trim().toLowerCase();
         const priceValue = priceFilter.value;
         const cuisineValue = cuisineFilter.value.toLowerCase();
         const ratingValue = ratingFilter.value;
-  
-        let filtered = [...restaurants];
-  
-        // Apply search
-        if (searchTerm) {
-            filtered = filtered.filter(restaurant => 
+    
+        // If all filters are empty, show all restaurants
+        if (!searchTerm && !priceValue && !cuisineValue && !ratingValue) {
+            displayRestaurants(restaurants);
+            return;
+        }
+    
+        let filtered = restaurants.filter(restaurant => {
+            // Search term matching (name, cuisine, or description)
+            const matchesSearch = !searchTerm || 
                 restaurant.name.toLowerCase().includes(searchTerm) ||
                 restaurant.cuisine.toLowerCase().includes(searchTerm) ||
-                restaurant.description.toLowerCase().includes(searchTerm)
-            );
-        }
-  
-        // Apply price filter
-        if (priceValue) {
-            const priceLevels = ['$', '$$', '$$$', '$$$$'];
-            filtered = filtered.filter(restaurant => 
-                restaurant.price === priceLevels[priceValue - 1]
-            );
-        }
-  
-        // Apply cuisine filter
-        if (cuisineValue) {
-            filtered = filtered.filter(restaurant => 
-                restaurant.cuisine.toLowerCase() === cuisineValue
-            );
-        }
-  
-        // Apply rating filter
-        if (ratingValue) {
-            filtered = filtered.filter(restaurant => 
-                restaurant.rating >= parseFloat(ratingValue)
-            );
-        }
-  
+                restaurant.description.toLowerCase().includes(searchTerm);
+    
+            // Price filter matching
+            const matchesPrice = !priceValue || 
+                (priceValue === "301" ? 
+                    restaurant.perHead > 300 : 
+                    restaurant.perHead <= parseFloat(priceValue));
+    
+            // Cuisine filter matching
+            const matchesCuisine = !cuisineValue || 
+                restaurant.cuisine.toLowerCase() === cuisineValue;
+    
+            // Rating filter matching
+            const matchesRating = !ratingValue || 
+                restaurant.rating >= parseFloat(ratingValue);
+    
+            return matchesSearch && matchesPrice && matchesCuisine && matchesRating;
+        });
+    
         displayRestaurants(filtered);
     }
     async function fetchAndDisplayReservations() {
@@ -335,7 +344,10 @@ restaurantCard.innerHTML = `
                 throw new Error(reservations.error || 'Failed to fetch reservations');
             }
     
-            // Separate into active and past reservations
+            // Get current date in YYYY-MM-DD format
+            const currentDate = new Date().toISOString().split('T')[0];
+            
+            // Separate into active (today or future) and past reservations
             const activeReservations = reservations.filter(r => r.status === 'upcoming');
             const pastReservations = reservations.filter(r => r.status === 'completed');
     
@@ -347,7 +359,14 @@ restaurantCard.innerHTML = `
         }
     }
     // Display reservations
+    // Initialize the first tab as active
+document.querySelector('.tab-btn[data-tab="active"]')?.classList.add('active');
+document.getElementById('activeReservations')?.classList.remove('hidden');
+
     function displayReservations(activeReservations, pastReservations) {
+        const activeReservationsList = document.getElementById('activeReservations');
+        const pastReservationsList = document.getElementById('pastReservations');
+        
         activeReservationsList.innerHTML = '';
         pastReservationsList.innerHTML = '';
     
@@ -363,7 +382,6 @@ restaurantCard.innerHTML = `
             pastReservationsList.innerHTML = '<p class="no-results">No past reservations</p>';
         } else {
             pastReservations.forEach(reservation => {
-                pastReservationsList.innerHTML = '';
                 pastReservationsList.appendChild(createReservationCard(reservation));
             });
         }
@@ -376,72 +394,49 @@ restaurantCard.innerHTML = `
         card.className = 'reservation-card';
         
         const statusClass = `status-${reservation.status}`;
-        const formattedDate = new Date(reservation.booking_date).toLocaleDateString();
+        const formattedDate = new Date(reservation.booking_date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
         const formattedTime = reservation.booking_time.substring(0, 5); // HH:MM format
+        
+        // Convert amount to number if it's not already
+        const amount = typeof reservation.amount === 'string' ? 
+            parseFloat(reservation.amount) : 
+            reservation.amount;
         
         card.innerHTML = `
             <div class="reservation-header">
-                <span class="reservation-name">${reservation.restaurant_name}</span>
+                <h3 class="reservation-name">${reservation.restaurant_name}</h3>
                 <span class="reservation-status ${statusClass}">
                     ${reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1)}
                 </span>
             </div>
-            <div class="reservation-date">
-                ${formattedDate} at ${formattedTime}
-            </div>
             <div class="reservation-details">
-                <span>${reservation.number_of_people} person${reservation.number_of_people > 1 ? 's' : ''}</span>
-                <span>$${reservation.amount.toFixed(2)}</span>
+                <div class="detail-group">
+                    <span class="detail-label">Date</span>
+                    <span class="detail-value">${formattedDate}</span>
+                </div>
+                <div class="detail-group">
+                    <span class="detail-label">Time</span>
+                    <span class="detail-value">${formattedTime}</span>
+                </div>
+                <div class="detail-group">
+                    <span class="detail-label">Party Size</span>
+                    <span class="detail-value">${reservation.number_of_people}</span>
+                </div>
+                <div class="detail-group">
+                    <span class="detail-label">Total</span>
+                    <span class="detail-value">₹${amount.toFixed(2)}</span>
+                </div>
             </div>
         `;
         
         return card;
     }
    
-    // Add this near the other DOM element declarations
-const ratingModal = document.getElementById('ratingModal');
-const ratingScore = document.getElementById('ratingScore');
-const ratingComment = document.getElementById('ratingComment');
-const submitRating = document.getElementById('submitRating');
-let currentRatingRestaurant = null;
-
-// Add this event listener for rate buttons (put it near the book button event listeners)
-document.querySelectorAll('.rate-btn').forEach(button => {
-    button.addEventListener('click', function() {
-        const restaurantId = this.getAttribute('data-id');
-        currentRatingRestaurant = restaurants.find(r => r.id == restaurantId);
-        openRatingModal(currentRatingRestaurant);
-    });
-});
-
-// Add this function to open the rating modal
-function openRatingModal(restaurant) {
-    // Reset form
-    ratingScore.value = '5';
-    ratingComment.value = '';
-    
-    // Show modal
-    ratingModal.style.display = 'block';
-}
-
-// Add this event listener for submitting ratings (put it near other event listeners)
-submitRating.addEventListener('click', function() {
-    if (!currentRatingRestaurant) return;
-    
-    const rating = {
-        score: ratingScore.value,
-        comment: ratingComment.value,
-        restaurantId: currentRatingRestaurant.id,
-        restaurantName: currentRatingRestaurant.name
-    };
-    
-    // Here you would typically send this to your backend
-    console.log('Submitting rating:', rating);
-    alert(`Thank you for your ${rating.score}-star rating of ${rating.restaurantName}!`);
-    
-    // Close modal
-    ratingModal.style.display = 'none';
-});
+  
     // Event Listeners
     searchBtn.addEventListener('click', filterRestaurants);
     searchInput.addEventListener('keypress', function(e) {
@@ -483,7 +478,7 @@ submitRating.addEventListener('click', function() {
     viewReservations.addEventListener('click', function(e) {
         e.preventDefault();
         profileDropdown.classList.remove('show-dropdown');
-        displayReservations();
+        fetchAndDisplayReservations(); // This will load fresh data
         reservationsModal.style.display = 'block';
     });
   
@@ -523,6 +518,7 @@ submitRating.addEventListener('click', function() {
   
   
     confirmBooking.addEventListener('click', async function() {
+        // Validate all fields
         if (!bookingDate.value || !bookingTime.value || !partySize.value) {
             alert('Please fill in all booking details');
             return;
@@ -540,6 +536,12 @@ submitRating.addEventListener('click', function() {
         }
     
         const totalAmount = currentRestaurant.perHead * parseInt(partySize.value);
+    
+        // Check if user has sufficient balance
+        if (totalAmount > userBalance) {
+            alert('Insufficient balance. Please top up your wallet.');
+            return;
+        }
     
         try {
             // Make the reservation
@@ -561,12 +563,24 @@ submitRating.addEventListener('click', function() {
             const result = await response.json();
     
             if (response.ok) {
+                // Update local balance
+                userBalance -= totalAmount;
+                updateBalanceDisplay();
+                
                 // Close modal and show success
                 bookingModal.style.display = 'none';
-                alert('Booking confirmed successfully!');
+                alert(`Booking confirmed at ${currentRestaurant.name}!\nTotal: ₹${totalAmount.toFixed(2)}`);
                 
-                // Optionally refresh reservations
-                displayReservations();
+                // Refresh reservations
+                await fetchAndDisplayReservations();
+                
+                // Update wallet balance from server (to ensure sync)
+                const balanceResponse = await fetch(`http://localhost:3000/customer/balance/${username}`);
+                const balanceData = await balanceResponse.json();
+                if (balanceData.success) {
+                    userBalance = parseFloat(balanceData.balance);
+                    updateBalanceDisplay();
+                }
             } else {
                 alert('Booking failed: ' + (result.error || 'Unknown error'));
             }
@@ -619,9 +633,335 @@ submitRating.addEventListener('click', function() {
         alert('Error during top-up');
     });
 });
+// Replace the submit rating event listener with this:
+// Add this near your other modal declarations
 
 
+// Add this function to open the rating modal
+function openRatingModal(restaurant) {
+    // Reset the form
+    ratingScore.value = '5';
+    ratingComment.value = '';
+    
+    // Show modal
+    ratingModal.style.display = 'block';
+}
+
+// Add this after the book button event listeners
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.classList.contains('rate-btn')) {
+        const restaurantId = e.target.getAttribute('data-id');
+        currentRestaurant = restaurants.find(r => r.id == restaurantId);
+        openRatingModal(currentRestaurant);
+    }
+});
+
+// Add submit rating functionality
+submitRating.addEventListener('click', async function() {
+    const username = urlParams.get('username');
+    if (!username) {
+        alert('Please log in to submit a rating');
+        return;
+    }
+
+    const rating = parseInt(ratingScore.value);
+    const comment = ratingComment.value.trim();
+
+    if (!rating || rating < 1 || rating > 5) {
+        alert('Please select a valid rating between 1 and 5');
+        return;
+    }
+
+    try {
+        // Get customer ID
+        const customerResponse = await fetch(`http://localhost:3000/customer/get-id/${username}`);
+        const customerText = await customerResponse.text();
+        
+        // First check if response is JSON
+        let customerData;
+        try {
+            customerData = JSON.parse(customerText);
+        } catch (e) {
+            console.error('Failed to parse JSON:', customerText);
+            throw new Error('Server returned invalid response');
+        }
+
+        if (!customerResponse.ok) {
+            throw new Error(customerData.error || 'Failed to get customer ID');
+        }
+
+        const customer_id = customerData.customer_id;
+
+        // Submit feedback
+        const response = await fetch('http://localhost:3000/api/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                customer_id: customer_id,
+                restaurant_id: currentRestaurant.id,
+                rating: rating,
+                comment: comment
+            })
+        });
+
+        const responseText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('Failed to parse JSON:', responseText);
+            throw new Error('Server returned invalid response');
+        }
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to submit feedback');
+        }
+
+        alert('Thank you for your feedback!');
+        ratingModal.style.display = 'none';
+        
+        // Refresh restaurant data
+        const dataResponse = await fetch('http://localhost:3000/restaurants');
+        const dataText = await dataResponse.text();
+        let data;
+        try {
+            data = JSON.parse(dataText);
+        } catch (e) {
+            console.error('Failed to parse JSON:', dataText);
+            throw new Error('Failed to load restaurant data');
+        }
+
+        restaurants = data.map(restaurant => ({
+            name: restaurant.restaurant_name,
+            cuisine: restaurant.cuisine,
+            price: `₹${restaurant.price_per_person}`,
+            perHead: parseFloat(restaurant.price_per_person),
+            image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4",
+            id: restaurant.restaurant_id,
+            rating: restaurant.average_rating,
+            description: restaurant.description
+        }));
+        displayRestaurants(restaurants);
+        
+    } catch (error) {
+        console.error('Full error:', error);
+        alert(`Error: ${error.message || 'An error occurred. Please try again later.'}`);
+    }
+});
+// Add close event listener for rating modal
+ratingModal.querySelector('.close').addEventListener('click', function() {
+    ratingModal.style.display = 'none';
+});
+// In your home.js, add a function to generate invoice cards
+function generateInvoiceCard(invoice) {
+    // Convert string amounts to numbers
+    const totalAmount = typeof invoice.total_amount === 'string' 
+        ? parseFloat(invoice.total_amount) 
+        : invoice.total_amount;
+    
+    // Format the date
+    const formattedDate = new Date(invoice.created_at || invoice.payment_date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+
+    return `
+        <div class="invoice-card" data-invoice-id="${invoice.invoice_id}">
+            <div class="invoice-header">
+                <div>
+                    <span class="invoice-id">Invoice #${invoice.invoice_id}</span>
+                    <div class="invoice-date">${formattedDate}</div>
+                </div>
+                <span class="invoice-amount">₹${totalAmount.toFixed(2)}</span>
+            </div>
+            <div class="invoice-details">
+                <div class="detail-group">
+                    <span class="detail-label">Restaurant</span>
+                    <span class="detail-value">${invoice.restaurant_name}</span>
+                </div>
+                <div class="detail-group">
+                    <span class="detail-label">Booking Date</span>
+                    <span class="detail-value">${invoice.booking_date}</span>
+                </div>
+                <div class="detail-group">
+                    <span class="detail-label">Party Size</span>
+                    <span class="detail-value">${invoice.number_of_people}</span>
+                </div>
+            </div>
+            <!-- Removed the invoice-actions div completely -->
+        </div>
+    `;
+}
+
+// Example function to load invoices (you'll need to implement the actual API call)
+async function loadInvoices() {
+    try {
+        const username = urlParams.get('username');
+        console.log('Loading invoices for:', username); // Debug log
+        
+        if (!username) {
+            alert('Please log in to view invoices');
+            return;
+        }
+
+        console.log('Making API request...'); // Debug log
+        const response = await fetch(`http://localhost:3000/api/invoices/${username}`);
+        
+        console.log('Response status:', response.status); // Debug log
+        const responseText = await response.text();
+        console.log('Raw response:', responseText); // Debug log
+        
+        // Try to parse JSON only if response is OK
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status} ${responseText}`);
+        }
+
+        const invoices = JSON.parse(responseText);
+        console.log('Parsed invoices:', invoices); // Debug log
+
+        const invoiceList = document.getElementById('invoiceList');
+        invoiceList.innerHTML = '';
+
+        if (invoices.length === 0) {
+            console.log('No invoices found'); // Debug log
+            invoiceList.innerHTML = '<div class="no-results">No invoices found</div>';
+            return;
+        }
+
+        invoices.forEach(invoice => {
+            console.log('Processing invoice:', invoice); // Debug log
+            invoiceList.innerHTML += generateInvoiceCard(invoice);
+        });
+
+    } catch (error) {
+        console.error('Error loading invoices:', error);
+        alert('Failed to load invoices: ' + error.message);
+    }
+}
+
+// Add event listener for the invoices tab
+document.querySelector('[data-tab="invoices"]').addEventListener('click', loadInvoices);
   
+// Function to show invoice details
+async function showInvoiceDetails(invoiceId) {
+    try {
+        const response = await fetch(`http://localhost:3000/api/invoices/details/${invoiceId}`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch invoice details');
+        }
+
+        const invoice = await response.json();
+
+        // Convert string amounts to numbers if needed
+        const amount = typeof invoice.amount === 'string' ? parseFloat(invoice.amount) : invoice.amount;
+        const totalAmount = typeof invoice.total_amount === 'string' ? parseFloat(invoice.total_amount) : invoice.total_amount;
+        const pricePerPerson = amount / invoice.number_of_people;
+        const taxAmount = totalAmount - amount;
+
+        const formattedDate = new Date(invoice.created_at || invoice.payment_date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const invoiceDetails = document.getElementById('invoiceDetails');
+        invoiceDetails.innerHTML = `
+            <div class="invoice-detail-row">
+                <span class="invoice-detail-label">Invoice Number</span>
+                <span class="invoice-detail-value">#${invoice.invoice_id}</span>
+            </div>
+            <div class="invoice-detail-row">
+                <span class="invoice-detail-label">Date</span>
+                <span class="invoice-detail-value">${formattedDate}</span>
+            </div>
+            <div class="invoice-detail-row">
+                <span class="invoice-detail-label">Restaurant</span>
+                <span class="invoice-detail-value">${invoice.restaurant_name}</span>
+            </div>
+            <div class="invoice-detail-row">
+                <span class="invoice-detail-label">Booking Date</span>
+                <span class="invoice-detail-value">${invoice.booking_date}</span>
+            </div>
+            <div class="invoice-detail-row">
+                <span class="invoice-detail-label">Booking Time</span>
+                <span class="invoice-detail-value">${invoice.booking_time.substring(0, 5)}</span>
+            </div>
+            <div class="invoice-detail-row">
+                <span class="invoice-detail-label">Party Size</span>
+                <span class="invoice-detail-value">${invoice.number_of_people}</span>
+            </div>
+            <div class="invoice-detail-row">
+                <span class="invoice-detail-label">Price per Person</span>
+                <span class="invoice-detail-value">₹${pricePerPerson.toFixed(2)}</span>
+            </div>
+            <div class="invoice-detail-row">
+                <span class="invoice-detail-label">Subtotal</span>
+                <span class="invoice-detail-value">₹${amount.toFixed(2)}</span>
+            </div>
+            <div class="invoice-detail-row">
+                <span class="invoice-detail-label">Tax</span>
+                <span class="invoice-detail-value">₹${taxAmount.toFixed(2)}</span>
+            </div>
+            <div class="invoice-detail-row">
+                <span class="invoice-detail-label">Total Amount</span>
+                <span class="invoice-detail-value">₹${totalAmount.toFixed(2)}</span>
+            </div>
+        `;
+
+        document.getElementById('invoiceModal').style.display = 'block';
+    } catch (error) {
+        console.error('Error loading invoice details:', error);
+        alert('Failed to load invoice details: ' + error.message);
+    }
+}
+
+// Function to handle invoice download (mock implementation)
+function downloadInvoice(invoiceId) {
+    // In a real implementation, this would call your backend to generate a PDF
+    console.log(`Downloading invoice ${invoiceId}`);
+    alert('Invoice download would start here in a real implementation');
+}
+
+// Add event delegation for view invoice buttons
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('view-invoice-btn') || 
+        e.target.closest('.view-invoice-btn')) {
+        const invoiceId = e.target.getAttribute('data-invoice-id') || 
+                         e.target.closest('.view-invoice-btn').getAttribute('data-invoice-id');
+        showInvoiceDetails(invoiceId);
+    }
+});
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Only proceed if button exists
+        if (!this) return;
+        
+        // Update active tab
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Show corresponding content
+        const tab = this.getAttribute('data-tab');
+        const tabContent = document.getElementById(`${tab}Reservations`);
+        const invoiceContent = document.getElementById('invoiceList');
+        
+        // Hide all first
+        document.querySelectorAll('.reservations-list').forEach(list => {
+            if (list) list.classList.add('hidden');
+        });
+        
+        // Show the correct one
+        if (tabContent) tabContent.classList.remove('hidden');
+        if (invoiceContent && tab === 'invoices') {
+            invoiceContent.classList.remove('hidden');
+            loadInvoices();
+        }
+    });
+});
     // Initial display
     updateBalanceDisplay();
     displayRestaurants(restaurants);
