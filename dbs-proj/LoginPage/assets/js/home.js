@@ -230,22 +230,24 @@ document.addEventListener('DOMContentLoaded', function() {
         restaurantsToDisplay.forEach(restaurant => {
             const restaurantCard = document.createElement('div');
             restaurantCard.className = 'restaurant-card';
-            restaurantCard.innerHTML = `
-                <img src="${restaurant.image}" alt="${restaurant.name}" class="restaurant-image">
-                <div class="restaurant-info">
-                    <h3 class="restaurant-name">${restaurant.name}</h3>
-                    <div class="restaurant-details">
-                        <span class="restaurant-cuisine">${restaurant.cuisine}</span>
-                        <span class="restaurant-price">${restaurant.price}</span>
-                    </div>
-                    <div class="restaurant-rating">
-                        <i class="fas fa-star"></i>
-                        <span>${restaurant.rating}</span>
-                    </div>
-                    <p class="restaurant-description">${restaurant.description}</p>
-                    <button class="book-btn" data-id="${restaurant.id}">Book Table</button>
-                </div>
-            `;
+            // In the displayRestaurants function, modify the restaurantCard.innerHTML to add the rate button:
+restaurantCard.innerHTML = `
+<img src="${restaurant.image}" alt="${restaurant.name}" class="restaurant-image">
+<div class="restaurant-info">
+    <h3 class="restaurant-name">${restaurant.name}</h3>
+    <div class="restaurant-details">
+        <span class="restaurant-cuisine">${restaurant.cuisine}</span>
+        <span class="restaurant-price">${restaurant.price}</span>
+    </div>
+    <div class="restaurant-rating">
+        <i class="fas fa-star"></i>
+        <span>${restaurant.rating}</span>
+    </div>
+    <p class="restaurant-description">${restaurant.description}</p>
+    <button class="rate-btn" data-id="${restaurant.id}">Rate</button>
+    <button class="book-btn" data-id="${restaurant.id}">Book Table</button>
+</div>
+`;
             restaurantsGrid.appendChild(restaurantCard);
         });
   
@@ -333,12 +335,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(reservations.error || 'Failed to fetch reservations');
             }
     
-            // Get current date in YYYY-MM-DD format
-            const currentDate = new Date().toISOString().split('T')[0];
-            
-            // Separate into active (today or future) and past reservations
-            const activeReservations = reservations.filter(r => r.booking_date >= currentDate);
-            const pastReservations = reservations.filter(r => r.booking_date < currentDate);
+            // Separate into active and past reservations
+            const activeReservations = reservations.filter(r => r.status === 'upcoming');
+            const pastReservations = reservations.filter(r => r.status === 'completed');
     
             // Display them
             displayReservations(activeReservations, pastReservations);
@@ -349,9 +348,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     // Display reservations
     function displayReservations(activeReservations, pastReservations) {
-        const activeReservationsList = document.getElementById('activeReservations');
-        const pastReservationsList = document.getElementById('pastReservations');
-        
         activeReservationsList.innerHTML = '';
         pastReservationsList.innerHTML = '';
     
@@ -359,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
             activeReservationsList.innerHTML = '<p class="no-results">No upcoming reservations</p>';
         } else {
             activeReservations.forEach(reservation => {
-                activeReservationsList.appendChild(createReservationCard(reservation, 'upcoming'));
+                activeReservationsList.appendChild(createReservationCard(reservation));
             });
         }
     
@@ -367,7 +363,8 @@ document.addEventListener('DOMContentLoaded', function() {
             pastReservationsList.innerHTML = '<p class="no-results">No past reservations</p>';
         } else {
             pastReservations.forEach(reservation => {
-                pastReservationsList.appendChild(createReservationCard(reservation, 'completed'));
+                pastReservationsList.innerHTML = '';
+                pastReservationsList.appendChild(createReservationCard(reservation));
             });
         }
     }
@@ -401,7 +398,50 @@ document.addEventListener('DOMContentLoaded', function() {
         return card;
     }
    
-  
+    // Add this near the other DOM element declarations
+const ratingModal = document.getElementById('ratingModal');
+const ratingScore = document.getElementById('ratingScore');
+const ratingComment = document.getElementById('ratingComment');
+const submitRating = document.getElementById('submitRating');
+let currentRatingRestaurant = null;
+
+// Add this event listener for rate buttons (put it near the book button event listeners)
+document.querySelectorAll('.rate-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const restaurantId = this.getAttribute('data-id');
+        currentRatingRestaurant = restaurants.find(r => r.id == restaurantId);
+        openRatingModal(currentRatingRestaurant);
+    });
+});
+
+// Add this function to open the rating modal
+function openRatingModal(restaurant) {
+    // Reset form
+    ratingScore.value = '5';
+    ratingComment.value = '';
+    
+    // Show modal
+    ratingModal.style.display = 'block';
+}
+
+// Add this event listener for submitting ratings (put it near other event listeners)
+submitRating.addEventListener('click', function() {
+    if (!currentRatingRestaurant) return;
+    
+    const rating = {
+        score: ratingScore.value,
+        comment: ratingComment.value,
+        restaurantId: currentRatingRestaurant.id,
+        restaurantName: currentRatingRestaurant.name
+    };
+    
+    // Here you would typically send this to your backend
+    console.log('Submitting rating:', rating);
+    alert(`Thank you for your ${rating.score}-star rating of ${rating.restaurantName}!`);
+    
+    // Close modal
+    ratingModal.style.display = 'none';
+});
     // Event Listeners
     searchBtn.addEventListener('click', filterRestaurants);
     searchInput.addEventListener('keypress', function(e) {

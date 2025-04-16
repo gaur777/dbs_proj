@@ -99,6 +99,44 @@
   margin-bottom: 1.5rem;
 }
 
+/* Add this near the other button styles */
+.rate-btn {
+  width: 100%;
+  padding: 0.8rem;
+  background: var(--secondary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+
+.rate-btn:hover {
+  background: #d45a3a;
+  transform: translateY(-2px);
+}
+
+/* Add this near other modal styles */
+.rating-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.rating-form textarea {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  resize: vertical;
+  min-height: 100px;
+}
+
 .search-bar {
   display: flex;
   align-items: center;
