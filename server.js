@@ -66,7 +66,7 @@ app.post("/signup", async (req, res) => {
 app.post("/login/restaurant", async (req, res) => {
     try {
         const { username, password } = req.body;
-        const sql = "SELECT * FROM RestaurantTable WHERE username = ? AND passwordhash = ?";
+        const sql = "SELECT * FROM (SELECT * FROM RestaurantTable) AS subquery WHERE username = ? AND passwordhash = ?;";
         
         const [results] = await pool.query(sql, [username, password]);
         if (results.length > 0) {
@@ -155,7 +155,7 @@ app.get('/restaurants', async (req, res) => {
 app.get("/customer/balance/:username", async (req, res) => {
     try {
         const { username } = req.params;
-        const sql = "SELECT balance FROM Customer WHERE username = ?";
+        const sql = "SELECT balance FROM (SELECT username, balance FROM Customer) AS subquery WHERE username = ?;";
         
         const [results] = await pool.query(sql, [username]);
         if (results.length > 0) {
@@ -233,96 +233,57 @@ app.post("/customer/topup", async (req, res) => {
 });
 
 // Reservation API
-// Modify your reservation API in server.js to include invoice creation
+
 app.post('/api/reservations', async (req, res) => {
-    const connection = await pool.getConnection();
     try {
-        const { customer_username, restaurant_id, booking_date, booking_time, number_of_people } = req.body;
+        const { customer_username, restaurant_id, booking_date, booking_time, 
+                number_of_people, amount, update_restaurant_balance } = req.body;
 
-        await connection.beginTransaction();
+        // Start transaction
+        await db.beginTransaction();
 
-        // 1. Get customer_id
-        const [customer] = await connection.query(
-            'SELECT customer_id FROM Customer WHERE username = ?', 
-            [customer_username]
+        // 1. Create the reservation
+        const reservationResult = await db.query(
+            `INSERT INTO reservations (customer_id, restaurant_id, booking_date, booking_time, 
+             number_of_people, amount, status)
+             SELECT c.customer_id, ?, ?, ?, ?, ?, 'upcoming'
+             FROM customers c WHERE c.username = ?`,
+            [restaurant_id, booking_date, booking_time, number_of_people, amount, customer_username]
         );
-        
-        if (customer.length === 0) {
-            await connection.rollback();
-            return res.status(404).json({ error: 'Customer not found' });
-        }
-        const customer_id = customer[0].customer_id;
 
-        // 2. Get restaurant details including price
-        const [restaurant] = await connection.query(
-            'SELECT restaurant_name, price_per_person FROM RestaurantTable WHERE restaurant_id = ?', 
-            [restaurant_id]
+        // 2. Deduct from customer balance
+        await db.query(
+            `UPDATE customers SET balance = balance - ? WHERE username = ?`,
+            [amount, customer_username]
         );
-        
-        if (restaurant.length === 0) {
-            await connection.rollback();
-            return res.status(404).json({ error: 'Restaurant not found' });
-        }
 
-        const price_per_person = parseFloat(restaurant[0].price_per_person);
-        const amount = number_of_people * price_per_person;
-        const total_amount = amount * 1.18; // Adding 18% tax
-
-        // 3. Check wallet balance
-        const [wallet] = await connection.query(
-            'SELECT balance FROM Wallet WHERE customer_id = ? FOR UPDATE',
-            [customer_id]
-        );
-        
-        if (wallet.length === 0 || wallet[0].balance < total_amount) {
-            await connection.rollback();
-            return res.status(400).json({ error: 'Insufficient balance' });
+        // 3. Add to restaurant balance if flag is set
+        if (update_restaurant_balance) {
+            await db.query(
+                `UPDATE restauranttable SET balance = balance + ? WHERE restaurant_id = ?`,
+                [amount, restaurant_id]
+            );
         }
 
-        // 4. Deduct from wallet
-        await connection.query(
-            'UPDATE Wallet SET balance = balance - ? WHERE customer_id = ?',
-            [total_amount, customer_id]
+        // Commit transaction
+        await db.commit();
+
+        // Create invoice (optional)
+        const invoiceResult = await db.query(
+            `INSERT INTO invoices (reservation_id, total_amount, payment_status)
+             VALUES (?, ?, 'paid')`,
+            [reservationResult.insertId, amount]
         );
 
-        // 5. Insert reservation
-        const [reservationResult] = await connection.query(
-            'INSERT INTO Reservation (customer_id, restaurant_id, booking_date, booking_time, number_of_people) VALUES (?, ?, ?, ?, ?)',
-            [customer_id, restaurant_id, booking_date, booking_time, number_of_people]
-        );
-        
-        const reservation_id = reservationResult.insertId;
-
-        // 6. Insert payment
-        const [paymentResult] = await connection.query(
-            'INSERT INTO Payment (reservation_id, amount) VALUES (?, ?)',
-            [reservation_id, amount]
-        );
-        
-        const payment_id = paymentResult.insertId;
-
-        // 7. Create invoice
-        await connection.query(
-            'INSERT INTO Invoice (payment_id, customer_id, total_amount) VALUES (?, ?, ?)',
-            [payment_id, customer_id, total_amount]
-        );
-
-        await connection.commit();
-
-        res.json({ 
-            success: true, 
-            message: 'Reservation successful',
-            reservation_id,
-            restaurant_name: restaurant[0].restaurant_name,
-            new_balance: wallet[0].balance - total_amount
+        res.json({
+            success: true,
+            reservation_id: reservationResult.insertId,
+            invoice_id: invoiceResult.insertId
         });
-
     } catch (error) {
-        await connection.rollback();
-        console.error('Reservation error:', error);
-        res.status(500).json({ error: 'Database operation failed' });
-    } finally {
-        connection.release();
+        await db.rollback();
+        console.error('Error creating reservation:', error);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
@@ -333,7 +294,7 @@ app.get('/api/reservations/:username', async (req, res) => {
         const currentDate = new Date().toISOString().split('T')[0];
 
         const [customer] = await pool.query(
-            'SELECT customer_id FROM Customer WHERE username = ?', 
+            'SELECT customer_id FROM (SELECT customer_id, username FROM Customer) AS subquery WHERE username = ?;', 
             [username]
         );
         
@@ -540,6 +501,345 @@ app.get('/api/invoices/details/:invoiceId', async (req, res) => {
         res.status(500).json({ error: 'Database error' });
     }
 });
+// Get restaurant reservations
+// Get restaurant reservations (updated version)
+app.get('/api/restaurant/reservations/:restaurantId', async (req, res) => {
+    try {
+        const { restaurantId } = req.params;
+        
+        const [reservations] = await pool.query(`
+            SELECT 
+                r.reservation_id,
+                r.booking_date,
+                r.booking_time,
+                r.number_of_people,
+                CAST(p.amount AS DECIMAL(10,2)) as amount,
+                CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+                c.phone,
+                c.email
+            FROM Reservation r
+            JOIN Payment p ON r.reservation_id = p.reservation_id
+            JOIN Customer c ON r.customer_id = c.customer_id
+            WHERE r.restaurant_id = ?
+            ORDER BY r.booking_date DESC, r.booking_time DESC
+        `, [restaurantId]);
+        
+        if (reservations.length === 0) {
+            return res.json([]); // Return empty array instead of error
+        }
+        
+        res.json(reservations);
+    } catch (error) {
+        console.error('Error fetching restaurant reservations:', error);
+        res.status(500).json({ 
+            error: 'Database error',
+            message: error.message
+        });
+    }
+});
+
+// Update this endpoint in server.js
+app.get('/api/restaurant/reservations/:restaurantId', async (req, res) => {
+    try {
+        const { restaurantId } = req.params;
+        
+        const [reservations] = await pool.query(`
+            SELECT 
+                r.reservation_id,
+                r.booking_date,
+                r.booking_time,
+                r.number_of_people,
+                CAST(p.amount AS DECIMAL(10,2)) as amount,
+                c.username as customer_name,
+                c.phone
+            FROM Reservation r
+            JOIN Payment p ON r.reservation_id = p.reservation_id
+            JOIN Customer c ON r.customer_id = c.customer_id
+            WHERE r.restaurant_id = ?
+            ORDER BY r.booking_date DESC, r.booking_time DESC
+        `, [restaurantId]);
+        
+        res.json(reservations);
+    } catch (error) {
+        console.error('Error fetching restaurant reservations:', error);
+        res.status(500).json({ 
+            error: 'Database error',
+            message: error.message
+        });
+    }
+});
+// Get restaurant ID by username
+app.get('/api/restaurant/by-username', async (req, res) => {
+    try {
+        const { username } = req.query;
+        
+        const [results] = await pool.query(
+            'SELECT restaurant_id FROM RestaurantTable WHERE username = ?', 
+            [username]
+        );
+        
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Restaurant not found' });
+        }
+        
+        res.json({ restaurant_id: results[0].restaurant_id });
+    } catch (error) {
+        console.error('Error fetching restaurant ID:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+// Get restaurant details by username
+app.get('/api/restaurant', async (req, res) => {
+    try {
+        const { username } = req.query;
+        
+        const [results] = await pool.query(`
+            SELECT 
+                restaurant_id,
+                restaurant_name,
+                price_per_person,
+                seating_capacity,
+                opening_time,
+                closing_time,
+                cuisine,
+                rating,
+                description
+            FROM RestaurantTable 
+            WHERE username = ?`, 
+            [username]
+        );
+        
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Restaurant not found' });
+        }
+        
+        res.json(results[0]);
+    } catch (error) {
+        console.error('Error fetching restaurant details:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// Get restaurant balance (total payments received)
+// Get restaurant balance
+app.post('/api/restaurant/balance/:restaurantId', async (req, res) => {
+    try {
+        const { restaurantId } = req.params;
+        
+        // Get balance directly from RestaurantTable
+        const [results] = await pool.query(
+            'SELECT balance FROM RestaurantTable WHERE restaurant_id = ?', 
+            [restaurantId]
+        );
+        
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Restaurant not found' });
+        }
+        
+        res.json({ balance: results[0].balance });
+    } catch (error) {
+        console.error('Error fetching restaurant balance:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// Get available seats for a restaurant
+app.get('/api/restaurant/available-seats/:restaurantId', async (req, res) => {
+    try {
+        const { restaurantId } = req.params;
+        const { date } = req.query;
+        
+        // Get total capacity
+        const [capacityResult] = await pool.query(
+            'SELECT seating_capacity FROM RestaurantTable WHERE restaurant_id = ?',
+            [restaurantId]
+        );
+        
+        if (capacityResult.length === 0) {
+            return res.status(404).json({ error: 'Restaurant not found' });
+        }
+        
+        const capacity = capacityResult[0].seating_capacity;
+        
+        // Get reserved seats for the date
+        const [reservedResult] = await pool.query(`
+            SELECT COALESCE(SUM(number_of_people), 0) as reserved_seats
+            FROM Reservation
+            WHERE restaurant_id = ? AND booking_date = ?`,
+            [restaurantId, date]
+        );
+        
+        const availableSeats = capacity - reservedResult[0].reserved_seats;
+        
+        res.json({ 
+            capacity,
+            reservedSeats: reservedResult[0].reserved_seats,
+            availableSeats
+        });
+    } catch (error) {
+        console.error('Error fetching available seats:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// Update restaurant pricing and capacity
+app.put('/api/restaurant/:restaurantId', async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        const { restaurantId } = req.params;
+        const { price_per_person, seating_capacity } = req.body;
+        
+        await connection.beginTransaction();
+        
+        // Build update query dynamically based on provided fields
+        let updates = [];
+        let params = [];
+        
+        if (price_per_person !== undefined) {
+            updates.push('price_per_person = ?');
+            params.push(price_per_person);
+        }
+        
+        if (seating_capacity !== undefined) {
+            updates.push('seating_capacity = ?');
+            params.push(seating_capacity);
+        }
+        
+        if (updates.length === 0) {
+            return res.status(400).json({ error: 'No fields to update' });
+        }
+        
+        params.push(restaurantId);
+        
+        const query = `
+            UPDATE RestaurantTable 
+            SET ${updates.join(', ')} 
+            WHERE restaurant_id = ?`;
+        
+        const [result] = await connection.query(query, params);
+        
+        if (result.affectedRows === 0) {
+            await connection.rollback();
+            return res.status(404).json({ error: 'Restaurant not found' });
+        }
+        
+        await connection.commit();
+        
+        // Get updated restaurant data
+        const [restaurant] = await pool.query(
+            'SELECT * FROM RestaurantTable WHERE restaurant_id = ?',
+            [restaurantId]
+        );
+        
+        res.json({ 
+            success: true,
+            restaurant: restaurant[0]
+        });
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error updating restaurant:', error);
+        res.status(500).json({ error: 'Database error' });
+    } finally {
+        connection.release();
+    }
+});
+
+// Get restaurant reservations with customer details
+app.get('/api/restaurant/reservations/:restaurantId', async (req, res) => {
+    try {
+        const { restaurantId } = req.params;
+        
+        const [reservations] = await pool.query(`
+            SELECT 
+                r.reservation_id,
+                r.booking_date,
+                r.booking_time,
+                r.number_of_people,
+                CAST(p.amount AS DECIMAL(10,2)) as total,
+                c.username as customer_name,
+                c.phone
+            FROM Reservation r
+            JOIN Payment p ON r.reservation_id = p.reservation_id
+            JOIN Customer c ON r.customer_id = c.customer_id
+            WHERE r.restaurant_id = ?
+            ORDER BY r.booking_date DESC, r.booking_time DESC`,
+            [restaurantId]
+        );
+        
+        res.json(reservations);
+    } catch (error) {
+        console.error('Error fetching reservations:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+// Comprehensive restaurant dashboard endpoint
+app.get('/api/restaurant/dashboard', async (req, res) => {
+    try {
+        const { username } = req.query;
+        const today = new Date().toISOString().split('T')[0];
+
+        // 1. Get basic restaurant info
+        const [restaurant] = await pool.query(`
+            SELECT 
+                restaurant_id,
+                restaurant_name,
+                price_per_person,
+                seating_capacity,
+                balance
+            FROM RestaurantTable 
+            WHERE username = ?`, 
+            [username]
+        );
+
+        if (restaurant.length === 0) {
+            return res.status(404).json({ error: 'Restaurant not found' });
+        }
+
+        const restaurantId = restaurant[0].restaurant_id;
+
+        // 2. Get available seats for today
+        const [seats] = await pool.query(`
+            SELECT 
+                seating_capacity - COALESCE(SUM(number_of_people), 0) AS availableSeats
+            FROM RestaurantTable rt
+            LEFT JOIN Reservation r ON rt.restaurant_id = r.restaurant_id 
+                AND r.booking_date = ?
+            WHERE rt.restaurant_id = ?
+            GROUP BY rt.restaurant_id`,
+            [today, restaurantId]
+        );
+
+        // 3. Get reservations
+        const [reservations] = await pool.query(`
+            SELECT 
+                r.reservation_id,
+                r.booking_date,
+                r.booking_time,
+                r.number_of_people,
+                CAST(p.amount AS DECIMAL(10,2)) as total,
+                c.username as customer_name,
+                c.phone
+            FROM Reservation r
+            JOIN Payment p ON r.reservation_id = p.reservation_id
+            JOIN Customer c ON r.customer_id = c.customer_id
+            WHERE r.restaurant_id = ?
+            ORDER BY r.booking_date DESC, r.booking_time DESC`,
+            [restaurantId]
+        );
+
+        res.json({
+            ...restaurant[0],
+            availableSeats: seats[0]?.availableSeats || restaurant[0].seating_capacity,
+            reservations: reservations
+        });
+
+    } catch (error) {
+        console.error('Dashboard error:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
